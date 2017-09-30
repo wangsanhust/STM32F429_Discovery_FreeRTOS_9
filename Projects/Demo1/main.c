@@ -80,7 +80,7 @@ int main(void)
         vTraceEnable(TRC_START);
 
        /* Create queue*/
-       NumQueue = xQueueCreate( 10000 , 4);   //10000个项目数，每个项目4个字节 
+       NumQueue = xQueueCreate( 1000 , 4);   //1000个项目数，每个项目4个字节 
 
        /* Create tasks */
        xTaskCreate(
@@ -106,7 +106,7 @@ int main(void)
 		  "Monitor_Task",                          /* Task name - for debugging only*/
 		  configMINIMAL_STACK_SIZE,         /* Stack depth in words */
 		  (void*) NULL,                     /* Pointer to tasks arguments (parameter) */
-		  tskIDLE_PRIORITY + 3UL,           /* Task priority*/
+		  tskIDLE_PRIORITY + 2UL,           /* Task priority*/
 		  NULL                              /* Task handle */
        );
 	
@@ -184,12 +184,12 @@ void ToggleSender_Task(void *pvParameters)
 
     while (1) 
     {
-        SendNum ++;
 	if(SendNum > 10000)
         {
-            SendNum = 1;
+            SendNum = 0;
         } 
-	xQueueSend(NumQueue,(void*)&SendNum,0);      //队列名，被发送数据的指针，队列满了，等待队列有空的最大时间
+	SendNum ++;
+	xQueueSend(NumQueue,&SendNum,0);      //队列名，被发送数据的指针，队列满了，等待队列有空的最大时间
 	S1 ++;
         /*
         Delay for a period of time. vTaskDelay() places the task into
@@ -197,7 +197,7 @@ void ToggleSender_Task(void *pvParameters)
         The delay period is spacified in 'ticks'. We can convert
         yhis in milisecond with the constant portTICK_RATE_MS.
         */
-        vTaskDelay(2 / portTICK_RATE_MS);
+        vTaskDelay(2);
   }
 }
 
@@ -212,9 +212,12 @@ void ToggleReceiver_Task(void *pvParameters)
 	    
     while (1) 
     {
-        while(xQueueReceive(NumQueue,&ReceiveNum,0) == pdTRUE )  //队列不空一直循环接收;队列名，接收数据的指针，队列空了，等待队列有数据的最大时间
+	vTaskDelay(1000);        
+	while(1)  
 	{
+	    if(xQueueReceive(NumQueue,&ReceiveNum,0) == pdTRUE)
 	    R2 ++;
+	    else break;
 	}
 	if(led == 0)
         {
@@ -232,7 +235,7 @@ void ToggleReceiver_Task(void *pvParameters)
         The delay period is spacified in 'ticks'. We can convert
         yhis in milisecond with the constant portTICK_RATE_MS.
         */
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        //vTaskDelay(1000);
   }
 }
 
@@ -242,10 +245,12 @@ void ToggleReceiver_Task(void *pvParameters)
 void ToggleMonitor_Task(void *pvParameters)
 
 {
+    Red_LED_Off();
     //int led = 0;  
     while (1) 
     {
-        if(S1 == R2)
+        vTaskDelay(10000);
+	if(S1 == R2)
 	{
             //led = 0;
 	    Red_LED_Off();
@@ -263,7 +268,7 @@ void ToggleMonitor_Task(void *pvParameters)
         The delay period is spacified in 'ticks'. We can convert
         yhis in milisecond with the constant portTICK_RATE_MS.
         */
-        vTaskDelay(10000 / portTICK_RATE_MS);
+        //vTaskDelay(2500);
   }
 }
 
