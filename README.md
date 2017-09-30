@@ -1,3 +1,5 @@
+# Test for the second homework at RTCSD2017 !!!
+
 # STM32F429_Discovery_FreeRTOS_9例程编译
 
 ## 0. 开发环境搭建：
