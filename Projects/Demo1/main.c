@@ -189,7 +189,7 @@ void ToggleSender_Task(void *pvParameters)
         {
             SendNum = 1;
         } 
-	xQueueSend（NumQueue,&SecdNum,0);      //队列名，被发送数据的指针，队列满了，等待队列有空的最大时间
+	xQueueSend(NumQueue,(void*)&SendNum,0);      //队列名，被发送数据的指针，队列满了，等待队列有空的最大时间
 	S1 ++;
         /*
         Delay for a period of time. vTaskDelay() places the task into
@@ -208,12 +208,11 @@ void ToggleReceiver_Task(void *pvParameters)
 
 {
     unsigned long ReceiveNum = 0;  
-    int led = 0
+    int led = 0;
 	    
     while (1) 
     {
-        while(xQueueReceive(NumQueue,&ReceiveNum,0) == pdture )  //队列名，接收数据的指针，队列空了，等待队列有数据的最大时间
-		                                                 //队列不空一直循环接收
+        while(xQueueReceive(NumQueue,&ReceiveNum,0) == pdTRUE )  //队列不空一直循环接收;队列名，接收数据的指针，队列空了，等待队列有数据的最大时间
 	{
 	    R2 ++;
 	}
