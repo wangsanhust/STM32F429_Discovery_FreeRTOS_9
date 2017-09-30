@@ -28,6 +28,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "timers.h"
+#include "queue.h"     //包含必须头文件
 
 
 /** @addtogroup STM32F4_Discovery_Peripheral_Examples
@@ -44,6 +45,10 @@ GPIO_InitTypeDef  GPIO_InitStructure;
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+xQueueHandle NumQueue;   //全局创建队列句柄为 NumQueue
+unsigned long S1 = 0 ;
+unsigned long R2 = 0 ;
+
 /* Private function prototypes -----------------------------------------------*/
 
 /* Private functions ---------------------------------------------------------*/
@@ -52,8 +57,9 @@ void Red_LED_On(void);
 void Red_LED_Off(void);
 void Green_LED_On(void);
 void Green_LED_Off(void);
-void ToggleLED1_Task(void*);
-void ToggleLED2_Task(void*);
+void ToggleSender_Task(void*);
+void ToggleReceiver_Task(void*);
+void ToggleMonitor_Task(void*);
 /**
   * @brief  Main program
   * @param  None
@@ -73,10 +79,22 @@ int main(void)
         vTraceEnable(TRC_INIT);
         vTraceEnable(TRC_START);
 
+       /* Create queue*/
+       NumQueue = xQueueCreate( 10000 , 4);   //10000个项目数，每个项目4个字节 
+
        /* Create tasks */
        xTaskCreate(
-		  ToggleLED1_Task,                 /* Function pointer */
-		  "Task_LED1",                          /* Task name - for debugging only*/
+		  ToggleSender_Task,                 /* Function pointer */
+		  "Sender_Task",                          /* Task name - for debugging only*/
+		  configMINIMAL_STACK_SIZE,         /* Stack depth in words */
+		  (void*) NULL,                     /* Pointer to tasks arguments (parameter) */
+		  tskIDLE_PRIORITY + 4UL,           /* Task priority*/
+		  NULL                              /* Task handle */
+       );
+
+       xTaskCreate(
+		  ToggleReceiver_Task,                 /* Function pointer */
+		  "Receiver_Task",                          /* Task name - for debugging only*/
 		  configMINIMAL_STACK_SIZE,         /* Stack depth in words */
 		  (void*) NULL,                     /* Pointer to tasks arguments (parameter) */
 		  tskIDLE_PRIORITY + 3UL,           /* Task priority*/
@@ -84,14 +102,14 @@ int main(void)
        );
 
        xTaskCreate(
-		  ToggleLED2_Task,                 /* Function pointer */
-		  "Task_LED2",                          /* Task name - for debugging only*/
+		  ToggleMonitor_Task,                 /* Function pointer */
+		  "Monitor_Task",                          /* Task name - for debugging only*/
 		  configMINIMAL_STACK_SIZE,         /* Stack depth in words */
 		  (void*) NULL,                     /* Pointer to tasks arguments (parameter) */
-		  tskIDLE_PRIORITY + 2UL,           /* Task priority*/
+		  tskIDLE_PRIORITY + 3UL,           /* Task priority*/
 		  NULL                              /* Task handle */
        );
-
+	
 	/* Start the scheduler. */
 	vTaskStartScheduler();
 
@@ -158,44 +176,48 @@ void Green_LED_Off(void)
     GPIOG->ODR &= 0xDFFF;
 }
 /**
- * ToggleLED1_Task: Toggle LED1 via RTOS Timer
+ * ToggleSender_Task: Toggle Sender_Task via RTOS Timer
  */
-void ToggleLED1_Task(void *pvParameters)
+void ToggleSender_Task(void *pvParameters)
 {
-    int led = 0;  
+    unsigned long SendNum = 0;  
 
     while (1) 
     {
-        if(led == 0)
+        SendNum ++;
+	if(SendNum > 10000)
         {
-            Red_LED_On();
-            led = 1;
+            SendNum = 1;
         } 
-        else
-        {
-            Red_LED_Off();
-            led = 0;
-         }
+	xQueueSend（NumQueue,&SecdNum,0);      //队列名，被发送数据的指针，队列满了，等待队列有空的最大时间
+	S1 ++;
         /*
         Delay for a period of time. vTaskDelay() places the task into
         the Blocked state until the period has expired.
         The delay period is spacified in 'ticks'. We can convert
         yhis in milisecond with the constant portTICK_RATE_MS.
         */
-        vTaskDelay(1000 / portTICK_RATE_MS);
+        vTaskDelay(2 / portTICK_RATE_MS);
   }
 }
 
 /**
- * ToggleLED2_Task: Toggle LED2 via RTOS Timer
+ * ToggleReceiver_Task: Toggle Receiver_Task via RTOS Timer
  */
-void ToggleLED2_Task(void *pvParameters)
+void ToggleReceiver_Task(void *pvParameters)
 
 {
-    int led = 0;  
+    unsigned long ReceiveNum = 0;  
+    int led = 0
+	    
     while (1) 
     {
-        if(led == 0)
+        while(xQueueReceive(NumQueue,&ReceiveNum,0) == pdture )  //队列名，接收数据的指针，队列空了，等待队列有数据的最大时间
+		                                                 //队列不空一直循环接收
+	{
+	    R2 ++;
+	}
+	if(led == 0)
         {
             Green_LED_On();
             led = 1;
@@ -211,7 +233,38 @@ void ToggleLED2_Task(void *pvParameters)
         The delay period is spacified in 'ticks'. We can convert
         yhis in milisecond with the constant portTICK_RATE_MS.
         */
-        vTaskDelay(2000 / portTICK_RATE_MS);
+        vTaskDelay(1000 / portTICK_RATE_MS);
+  }
+}
+
+/**
+ * ToggleMonitor_Task: Toggle Monitor_Task via RTOS Timer
+ */
+void ToggleMonitor_Task(void *pvParameters)
+
+{
+    //int led = 0;  
+    while (1) 
+    {
+        if(S1 == R2)
+	{
+            //led = 0;
+	    Red_LED_Off();
+	}
+	else 
+        {
+            Red_LED_On();
+            //led = 1;
+         }
+	S1 = 0;
+	R2 = 0;
+        /*
+        Delay for a period of time. vTaskDelay() places the task into
+        the Blocked state until the period has expired.
+        The delay period is spacified in 'ticks'. We can convert
+        yhis in milisecond with the constant portTICK_RATE_MS.
+        */
+        vTaskDelay(10000 / portTICK_RATE_MS);
   }
 }
 
